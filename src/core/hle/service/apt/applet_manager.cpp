@@ -1086,6 +1086,8 @@ Result AppletManager::PrepareToCloseApplication(bool return_to_sys) {
         // EnsureHomeMenuLoaded();
     }
 
+    LOG_DEBUG(Service_APT, "target={:03X}", application_close_target);
+
     return ResultSuccess;
 }
 
@@ -1115,6 +1117,7 @@ Result AppletManager::CloseApplication(std::shared_ptr<Kernel::Object> object,
     }
 
     // TODO: Terminate the application process.
+    LOG_DEBUG(Service_APT, "target={:03X}", application_close_target);
     return ResultSuccess;
 }
 
