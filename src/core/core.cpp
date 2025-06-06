@@ -119,7 +119,10 @@ System::ResultStatus System::RunLoop(bool tight_loop) {
         return ResultStatus::Success;
     }
     case Signal::Shutdown:
+                        {
+                            printf("shut down\n");
         return ResultStatus::ShutdownRequested;
+                        }
     case Signal::Load: {
         if (save_state_request_status != SaveStateStatus::NONE) {
             LOG_ERROR(Core, "A pending save state operation has not finished yet");
@@ -284,6 +287,7 @@ bool System::SendSignal(System::Signal signal, u32 param) {
     }
     current_signal = signal;
     signal_param = param;
+    printf("signal set %d\n", signal);
     return true;
 }
 
@@ -630,6 +634,12 @@ void System::RegisterImageInterface(std::shared_ptr<Frontend::ImageInterface> im
 }
 
 void System::Shutdown(bool is_deserializing) {
+    LOG_DEBUG(Core, "Shutdown ");
+
+    if (auto apt = Service::APT::GetModule(*this)) {
+// apt->GetAppletManager()->PrepareToCloseApplication(true);
+apt->GetAppletManager()->OrderToCloseApplication();
+}
 
     // Shutdown emulation session
     is_powered_on = false;
