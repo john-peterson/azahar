@@ -168,9 +168,70 @@ void GMainWindow::ShowCommandOutput(std::string title, std::string message) {
 #endif
 }
 
+
+// #include <ncurses.h>
+#include "core/hle/service/apt/apt.h"
+#include "core/hle/service/apt/applet_manager.h"
+#include "input_common/keyboard.h"
+#include <SDL2/SDL.h>
+void inputq (){
+    // if (fork() > 0) return;
+    int c;
+    // auto& svm = system.ServiceManager();
+    // auto apt = svm.GetService<Service::APT::Module::APTInterface>("APT:A");
+    // while ((c=getch()) != ERR) {
+    while ((c=getchar())) {
+    auto& system = Core::System::GetInstance();
+        printf("pressed %c\n", c); 
+        if (c == 'r')
+            system.RequestReset();
+        if (c == 'p')
+            system.frame_limiter.SetFrameAdvancing(true);
+        if (c == 'q') {
+            // emu_window->RequestClose();
+    // system = Core::System::GetInstance();
+            system.RequestShutdown();
+            // system.Shutdown(false);
+            // system.Reset();
+            // break;
+        }
+
+        if (c == 'a') {
+            int a = Settings::NativeButton::A;
+            a = SDL_SCANCODE_A;
+            auto* kb = InputCommon::GetKeyboard();
+            kb->PressKey(a);
+            sleep(1);
+            kb->ReleaseKey(a);
+        }
+            
+        if (c == 's') {
+
+// Set deliver arg so that System Settings goes to the update screen directly
+using namespace Service::APT;
+auto apt = Service::APT::GetModule(system);
+Service::APT::DeliverArg arg;
+arg.param.push_back(0x7a);
+apt->GetAppletManager()->SetDeliverArg(arg);
+
+            apt->GetAppletManager()->SendParameter({
+    // .sender_id = AppletManager::AppletSlot::HomeMenu,
+    // .sender_id = AppletId(0x101),
+    .sender_id = AppletId(0),
+    // .destination_id = AppletManager::AppletSlot::Application,
+    .destination_id = AppletId(0x300),
+    // .signal = Service::APT::SignalType::Exit,
+    .signal = Service::APT::SignalType::WakeupByExit,
+});
+        }
+    }
+    // system.Shutdown();
+}
+
 GMainWindow::GMainWindow(Core::System& system_)
     : ui{std::make_unique<Ui::MainWindow>()}, system{system_}, movie{system.Movie()},
       user_data_migrator{this}, config{std::make_unique<QtConfig>()}, emu_thread{nullptr} {
+    std::thread i(inputq);
     Common::Log::Initialize();
     Common::Log::Start();
 

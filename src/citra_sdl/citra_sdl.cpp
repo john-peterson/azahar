@@ -170,8 +170,131 @@ static void OnStatusMessageReceived(const Network::StatusMessageEntry& msg) {
         std::cout << std::endl << "* " << message << std::endl << std::endl;
 }
 
+// #include <ncurses.h>
+#include "core/hle/service/apt/apt.h"
+#include "core/hle/service/apt/applet_manager.h"
+#include "input_common/keyboard.h"
+#include <SDL2/SDL.h>
+#include "core/system_titles.h"
+
+void send(int s) {
+
+    auto& system = Core::System::GetInstance();
+using namespace Service::APT;
+auto apt = GetModule(system);
+    auto am = apt->GetAppletManager();
+
+     am->SendParameter({
+    .sender_id = AppletId(0),
+    .destination_id = AppletId(0x300),
+    .signal = SignalType(s),
+    // .signal = SignalType::WakeupByCancel,
+});
+}
+
+void sendarg(int a) {
+
+// Set deliver arg so that System Settings goes to the update screen directly
+Service::APT::DeliverArg arg;
+// arg.param.push_back(0x7a);
+arg.param.push_back(a);
+
+apt->GetAppletManager()->SetDeliverArg(arg);
+ 
+}
+
+void input (){
+    // if (fork() > 0) return;
+    int c;
+    auto& system = Core::System::GetInstance();
+    // auto& svm = system.ServiceManager();
+    // auto apt = svm.GetService<Service::APT::Module::APTInterface>("APT:A");
+    // while ((c=getch()) != ERR) {
+    // while ((c=getchar()) != "\n") {
+    while ((c=getchar())) {
+        if (c == '\n') continue;
+        printf("pressed %c\n", c); 
+        if (c == 'r')
+            system.RequestReset();
+        if (c == 'p')
+            system.frame_limiter.SetFrameAdvancing(true);
+        if (c == 'q') {
+            // emu_window->RequestClose();
+    // system = Core::System::GetInstance();
+            system.RequestShutdown();
+            // system.Shutdown(false);
+            // system.Reset();
+            // break;
+        }
+
+            auto* kb = InputCommon::GetKeyboard();
+        if (c == 'a') {
+            // int a = Settings::NativeButton::A;
+            int a = SDL_SCANCODE_A;
+            kb->PressKey(a);
+            sleep(1);
+            kb->ReleaseKey(a);
+        }
+
+        if (c == 'b') {
+            int a = SDL_SCANCODE_B;
+            kb->PressKey(a);
+            sleep(1);
+            kb->ReleaseKey(a);
+        }
+
+        if (c == 'z') {
+            int a = SDL_SCANCODE_Z;
+            kb->PressKey(a);
+            sleep(1);
+            kb->ReleaseKey(a);
+        }
+            
+using namespace Service::APT;
+auto apt = GetModule(system);
+    auto am = apt->GetAppletManager();
+
+    // jump to home 
+// send parameters ten
+// receive parameters 3
+        if (c == 'j') {
+            send(10);
+        }
+
+        if (c == 'c') {
+            // am->PrepareToCloseApplication(true);
+            am->OrderToCloseApplication();
+            // Result r = am->OrderToCloseApplication();
+            // am->GlanceParameter(AppletId(0x300));
+            // am->GlanceParameter(AppletId::Application);
+            sleep(2);
+            am->ReceiveParameter(AppletId(0x300));
+        }
+
+        if (c == 'u') {
+        // auto id = am->GetAppletSlot(AppletSlot::Application)->applet_id;
+        auto slot = am->GetAppletSlotFromId(AppletId::Application);
+        printf("app slot=%d\n", slot); 
+        }
+
+        if (c == 's') {
+            send(0xc);
+
+
+// auto id = AppletId(0x300);
+// auto id = AppletId::Application;
+    // auto slot = am->GetAppletSlotFromId(id);
+    // auto slot = am->GetAppletSlotFromId(AppletId::Application);
+        // am->GetAppletSlot(slot)->parameter_event->Signal();
+        
+        }
+    }
+    // system.Shutdown();
+}
+
 /// Application entry point
 void LaunchSdlFrontend(int argc, char** argv) {
+    std::thread i(input);
     Common::Log::Initialize();
     Common::Log::SetColorConsoleBackendEnabled(true);
     Common::Log::Start();
@@ -319,6 +442,9 @@ void LaunchSdlFrontend(int argc, char** argv) {
     MicroProfileOnThreadCreate("EmuThread");
     SCOPE_EXIT({ MicroProfileShutdown(); });
 
+    // filepath = Core::GetHomeMenuNcchPath(2);
+LOG_WARNING(Frontend, "loading {}", filepath);
+
     if (filepath.empty()) {
         LOG_CRITICAL(Frontend, "Failed to load ROM: No ROM specified");
         exit(-1);
@@ -331,6 +457,8 @@ void LaunchSdlFrontend(int argc, char** argv) {
 
     auto& system = Core::System::GetInstance();
     auto& movie = system.Movie();
+    // input(system);
+    // input();
 
     if (!movie_record.empty()) {
         movie.PrepareForRecording();
@@ -477,7 +605,7 @@ void LaunchSdlFrontend(int argc, char** argv) {
     });
 
     std::atomic_bool stop_run;
-    system.GPU().Renderer().Rasterizer()->LoadDiskResources(
+    system.GPU().Renderer().Rasterizer()->LoadDefaultDiskResources(
         stop_run, [](VideoCore::LoadCallbackStage stage, std::size_t value, std::size_t total) {
             LOG_DEBUG(Frontend, "Loading stage {} progress {} {}", static_cast<u32>(stage), value,
                       total);
@@ -488,11 +616,13 @@ void LaunchSdlFrontend(int argc, char** argv) {
         return secondary_window ? secondary_window->IsOpen() : true;
     };
     while (emu_window->IsOpen() && secondary_is_open()) {
+            // printf("run loop\n");
         const auto result = system.RunLoop();
 
         switch (result) {
         case Core::System::ResultStatus::ShutdownRequested:
             emu_window->RequestClose();
+            printf("close\n");
             break;
         case Core::System::ResultStatus::Success:
             break;
@@ -523,6 +653,7 @@ void LaunchSdlFrontend(int argc, char** argv) {
 #ifdef __unix__
     Common::Linux::StopGamemode();
 #endif
+    printf("close 2\n");
 
     detached_tasks.WaitForAllTasks();
     exit(0);

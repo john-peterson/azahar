@@ -75,6 +75,7 @@ std::unique_ptr<Input::ButtonDevice> Keyboard::Create(const Common::ParamPackage
 }
 
 void Keyboard::PressKey(int key_code) {
+    printf("key %d\n", key_code);
     key_button_list->ChangeKeyStatus(key_code, true);
 }
 
